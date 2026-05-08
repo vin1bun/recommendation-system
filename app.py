@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+import requests
+import io
 
 # ── Page Config ──
 st.set_page_config(
@@ -11,24 +13,31 @@ st.set_page_config(
     layout     = "wide"
 )
 
-# ── Load Models ──
+# ── Load Models from Hugging Face ──
 @st.cache_resource
 def load_models():
-    with open("recommendation_model/user_item_matrix.pkl", "rb") as f:
-        user_item_matrix = pickle.load(f)
-    with open("recommendation_model/predicted_ratings_df.pkl", "rb") as f:
-        predicted_ratings_df = pickle.load(f)
-    with open("recommendation_model/tfidf_matrix.pkl", "rb") as f:
-        tfidf_matrix = pickle.load(f)
-    with open("recommendation_model/cosine_sim.pkl", "rb") as f:
-        cosine_sim = pickle.load(f)
-    with open("recommendation_model/product_text.pkl", "rb") as f:
-        product_text = pickle.load(f)
-    with open("recommendation_model/df_clean.pkl", "rb") as f:
-        df_clean = pickle.load(f)
-    return user_item_matrix, predicted_ratings_df, tfidf_matrix, cosine_sim, product_text, df_clean
+    base_url = "https://huggingface.co/datasets/Vin1bun/recommendation-model/resolve/main/"
+    
+    files = {
+        "user_item_matrix"    : "user_item_matrix.pkl",
+        "predicted_ratings_df": "predicted_ratings_df.pkl",
+        "tfidf_matrix"        : "tfidf_matrix.pkl",
+        "cosine_sim"          : "cosine_sim.pkl",
+        "product_text"        : "product_text.pkl",
+        "df_clean"            : "df_clean.pkl",
+        "tfidf"               : "tfidf_vectorizer.pkl"
+    }
+    
+    loaded = {}
+    for key, filename in files.items():
+        response = requests.get(base_url + filename)
+        loaded[key] = pickle.loads(response.content)
+    
+    return (loaded["user_item_matrix"], loaded["predicted_ratings_df"],
+            loaded["tfidf_matrix"], loaded["cosine_sim"],
+            loaded["product_text"], loaded["df_clean"], loaded["tfidf"])
 
-user_item_matrix, predicted_ratings_df, tfidf_matrix, cosine_sim, product_text, df_clean = load_models()
+user_item_matrix, predicted_ratings_df, tfidf_matrix, cosine_sim, product_text, df_clean, tfidf = load_models()
 
 # ── Product Index ──
 product_indices = pd.Series(product_text.index, index=product_text["ProductId"])
@@ -76,7 +85,6 @@ def get_hybrid_recommendations(user_id, n=10):
     return hybrid_df.reset_index()
 
 # ── Sidebar ──
-st.sidebar.image("https://avatars.githubusercontent.com/u/vin1bun", width=120)
 st.sidebar.title("Vineet Prakash")
 st.sidebar.markdown("**Data Scientist**")
 st.sidebar.markdown("📍 New Delhi, India")
@@ -115,7 +123,7 @@ if page == "🏠 Home":
     col1, col2, col3 = st.columns(3)
     col1.info("**Data**\nPandas · NumPy · Scipy")
     col2.info("**Models**\nSVD · TF-IDF · Cosine Similarity")
-    col3.info("**Deployment**\nStreamlit · Pickle")
+    col3.info("**Deployment**\nStreamlit · Hugging Face")
 
     st.markdown("---")
     st.markdown("*Built with ❤️ by Vineet Prakash | [LinkedIn](https://linkedin.com/in/vineetprakash03) | [GitHub](https://github.com/vin1bun)*")
@@ -138,7 +146,7 @@ elif page == "🤖 Get Recommendations":
             elif model == "SVD Only":
                 recs = get_svd_recommendations(user_id, n=n_recs)
             else:
-                rated   = user_item_matrix.loc[user_id] if user_id in user_item_matrix.index else None
+                rated = user_item_matrix.loc[user_id] if user_id in user_item_matrix.index else None
                 if rated is not None:
                     top_product = rated[rated > 0].sort_values(ascending=False).index[0]
                     recs = get_content_recommendations(top_product, n=n_recs)
@@ -149,7 +157,6 @@ elif page == "🤖 Get Recommendations":
                 st.success(f"Top {n_recs} recommendations for User: **{user_id}**")
                 st.dataframe(recs, use_container_width=True)
 
-                # Show user history
                 if user_id in user_item_matrix.index:
                     st.subheader("📋 User Rating History")
                     history = user_item_matrix.loc[user_id]
@@ -183,8 +190,8 @@ elif page == "📊 Model Comparison":
 
             with col2:
                 st.subheader("📄 Content Based")
-                rated       = user_item_matrix.loc[user_id]
-                top_product = rated[rated > 0].sort_values(ascending=False).index[0]
+                rated        = user_item_matrix.loc[user_id]
+                top_product  = rated[rated > 0].sort_values(ascending=False).index[0]
                 content_recs = get_content_recommendations(top_product, n=5)
                 if content_recs is not None:
                     st.dataframe(content_recs, use_container_width=True)
