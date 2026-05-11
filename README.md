@@ -6,7 +6,7 @@ Here is your GitHub README 👇
 
 A production grade AI powered Recommendation System built on 568,000+ real Amazon product reviews. The system combines Collaborative Filtering, Content Based Filtering and a Hybrid Model to deliver personalized product recommendations with human readable explanations — deployed as a live interactive web application.
 
-🔗 **Live App** → [[Add your Streamlit link here](https://recommendation-system-muslueqcfthbzlbzbdowwe.streamlit.app/)]
+🔗 **Live App** → [[Streamlit link here](https://recommendation-system-muslueqcfthbzlbzbdowwe.streamlit.app/)]
 
 ---
 
